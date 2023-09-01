@@ -5,5 +5,6 @@ package _02_Chat_Application;
  */
 
 public class ChatApp {
+// ask the user if they want to be server or not or two classes(server and client classes)
 
 }
