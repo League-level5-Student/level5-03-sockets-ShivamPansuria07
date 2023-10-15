@@ -1,75 +1,84 @@
 package _02_Chat_Application;
 
-import java.io.EOFException;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.net.InetAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.UnknownHostException;
-
-import javax.swing.JOptionPane;
+import java.io.*;
+import java.net.*;
+import java.util.*;
 
 public class Server {
-	private int port;
-
-	private ServerSocket server;
-	private Socket connection;
-
-	ObjectOutputStream os;
-	ObjectInputStream is;
-
-	public Server(int port) {
-		this.port = port;
+	public static void main(String[] args) {
+	    Server server = new Server(12345); // or any port number you prefer
+	    server.start();
 	}
 
-	public void start(){
-		try {
-			server = new ServerSocket(port, 100);
+    private int port;
+    private ServerSocket server;
+    private List<ObjectOutputStream> clientOutputStreams = new ArrayList<>();
 
-			connection = server.accept();
+    public Server(int port) {
+        this.port = port;
+    }
 
-			os = new ObjectOutputStream(connection.getOutputStream());
-			is = new ObjectInputStream(connection.getInputStream());
+    public void start() {
+        try {
+            server = new ServerSocket(port);
+            System.out.println("Server started on port: " + port);
 
-			os.flush();
+            while (true) {
+                new ClientHandler(server.accept()).start();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
-			while (connection.isConnected()) {
-				try {
-					JOptionPane.showMessageDialog(null, is.readObject());
-					System.out.println(is.readObject());
-				}catch(EOFException e) {
-					JOptionPane.showMessageDialog(null, "Connection Lost");
-					System.exit(0);
-				}
-			}
+    private class ClientHandler extends Thread {
+        private Socket socket;
+        private ObjectOutputStream os;
+        private ObjectInputStream is;
 
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-	
-	public String getIPAddress() {
-		try {
-			return InetAddress.getLocalHost().getHostAddress();
-		} catch (UnknownHostException e) {
-			return "ERROR!!!!!";
-		}
-	}
+        public ClientHandler(Socket socket) {
+            this.socket = socket;
+        }
 
-	public int getPort() {
-		return port;
-	}
+        public void run() {
+            try {
+                os = new ObjectOutputStream(socket.getOutputStream());
+                is = new ObjectInputStream(socket.getInputStream());
+                os.flush();
 
-	public void sendClick() {
-		try {
-			if (os != null) {
-				os.writeObject("CLICK SENT FROM SERVER");
-				os.flush();
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
+                synchronized (clientOutputStreams) {
+                    clientOutputStreams.add(os);
+                }
+
+                Object message;
+                while ((message = is.readObject()) != null) {
+                    System.out.println("Received: " + message);
+                    broadcast(message);
+                }
+            } catch (IOException | ClassNotFoundException e) {
+                e.printStackTrace();
+            } finally {
+                try {
+                    socket.close();
+                } catch (IOException e) {
+                }
+                synchronized (clientOutputStreams) {
+                    clientOutputStreams.remove(os);
+                }
+            }
+        }
+
+        private void broadcast(Object message) {
+            synchronized (clientOutputStreams) {
+                for (ObjectOutputStream writer : clientOutputStreams) {
+                    try {
+                        writer.writeObject(message);
+                        writer.flush();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+    }
 }

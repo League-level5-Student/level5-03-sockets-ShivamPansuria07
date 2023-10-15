@@ -9,11 +9,16 @@ import java.net.UnknownHostException;
 import javax.swing.JOptionPane;
 
 public class Client {
+	public static void main(String[] args) {
+	    Client client = new Client("localhost", 12345); // or any other IP and port
+	    client.start();
+	}
+
 	private String ip;
 	private int port;
 
 	Socket connection;
-
+//s
 	ObjectOutputStream os;
 	ObjectInputStream is;
 
@@ -39,13 +44,13 @@ public class Client {
 		}
 		
 		while (connection.isConnected()) {
-			try {
-				JOptionPane.showMessageDialog(null, is.readObject());
-				System.out.println(is.readObject());
-			} catch (Exception e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+		    try {
+		        Object receivedMessage = is.readObject();
+		        JOptionPane.showMessageDialog(null, receivedMessage);
+		        System.out.println(receivedMessage);
+		    } catch (Exception e) {
+		        e.printStackTrace();
+		    }
 		}
 	}
 	
